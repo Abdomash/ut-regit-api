@@ -25,15 +25,14 @@ Bun.serve({
     "/": () => new Response("Welcome to the Course Listings API"),
     "/semesters": () => ok(Object.keys(courseListings)),
     "/semesters/:semester": (req) => {
-      const semester = req.params.semester;
+      const { semester } = req.params;
       const fieldsOfStudy = courseListings[semester]?.fieldsOfStudy.map(
         (fos) => fos.deptAbbr,
       );
       return ok(fieldsOfStudy);
     },
     "/semesters/:semester/:fieldOfStudy": (req) => {
-      const semester = req.params.semester;
-      const fieldOfStudy = req.params.fieldOfStudy;
+      const { semester, fieldOfStudy } = req.params;
       const courses = courseListings[semester]?.fieldsOfStudy
         .find((fos) => fos.deptAbbr === fieldOfStudy)
         ?.courses.map((course) => course.courseNumber);
@@ -41,9 +40,7 @@ Bun.serve({
     },
 
     "/semesters/:semester/:fieldOfStudy/:course": (req) => {
-      const semester = req.params.semester;
-      const fieldOfStudy = req.params.fieldOfStudy;
-      const course = req.params.course;
+      const { semester, fieldOfStudy, course } = req.params;
       const topics = courseListings[semester]?.fieldsOfStudy
         .find((fos) => fos.deptAbbr === fieldOfStudy)
         ?.courses.find((c) => c.courseNumber === course)?.topics;
@@ -54,10 +51,7 @@ Bun.serve({
       return ok(topics?.map((topic) => topic.topicNumber));
     },
     "/semesters/:semester/:fieldOfStudy/:course/:topic": (req) => {
-      const semester = req.params.semester;
-      const fieldOfStudy = req.params.fieldOfStudy;
-      const course = req.params.course;
-      const topic = req.params.topic;
+      const { semester, fieldOfStudy, course, topic } = req.params;
       const sections = courseListings[semester]?.fieldsOfStudy
         .find((fos) => fos.deptAbbr === fieldOfStudy)
         ?.courses.find((c) => c.courseNumber === course)
@@ -66,11 +60,7 @@ Bun.serve({
       return ok(sections);
     },
     "/semesters/:semester/:fieldOfStudy/:course/:topic/:section": (req) => {
-      const semester = req.params.semester;
-      const fieldOfStudy = req.params.fieldOfStudy;
-      const course = req.params.course;
-      const topic = req.params.topic;
-      const section = req.params.section;
+      const { semester, fieldOfStudy, course, topic, section } = req.params;
       const sectionData = courseListings[semester]?.fieldsOfStudy
         .find((fos) => fos.deptAbbr === fieldOfStudy)
         ?.courses.find((c) => c.courseNumber === course)
