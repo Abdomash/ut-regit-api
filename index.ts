@@ -104,6 +104,7 @@ function main() {
         const semesters = Object.keys(courseListings);
         return okResponse(semesters);
       },
+      "/semesters/": (req) => Response.redirect(req.url.slice(0, -1)),
 
       /**
        * Lists all fields of study for a specific semester
@@ -128,6 +129,7 @@ function main() {
 
         return okResponse(fieldsOfStudy);
       },
+      "/semesters/:semester/": (req) => Response.redirect(req.url.slice(0, -1)),
 
       /**
        * Lists all courses for a specific field of study in a semester
@@ -152,6 +154,8 @@ function main() {
         const courses = fos.courses.map((course) => course.courseNumber);
         return okResponse(courses);
       },
+      "/semesters/:semester/:fieldOfStudy/": (req) =>
+        Response.redirect(req.url.slice(0, -1)),
 
       /**
        * Lists all topics for a specific course
@@ -188,6 +192,8 @@ function main() {
 
         return okResponse(topics);
       },
+      "/semesters/:semester/:fieldOfStudy/:course/": (req) =>
+        Response.redirect(req.url.slice(0, -1)),
 
       /**
        * Lists all sections for a specific topic
@@ -233,6 +239,8 @@ function main() {
 
         return okResponse(sections);
       },
+      "/semesters/:semester/:fieldOfStudy/:course/:topic/": (req) =>
+        Response.redirect(req.url.slice(0, -1)),
 
       /**
        * Gets detailed information about a specific section
@@ -284,6 +292,8 @@ function main() {
 
         return okResponse(sectionData);
       },
+      "/semesters/:semester/:fieldOfStudy/:course/:topic/:section/": (req) =>
+        Response.redirect(req.url.slice(0, -1)),
     },
 
     /**
