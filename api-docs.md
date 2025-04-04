@@ -10,37 +10,58 @@ This UT Reg-it Course Listings API provides a REST-API style access to UT Austin
 
 Represents a class section with details about meeting times, instructor, location, and enrollment.
 
+#### Structure
+
 ```json
 {
-  "uniqueNumber": "12345",       // Unique number for the section
-  "constSectNbr": "1",           // Constant section number
-  "instructor": "Smith, J",      // Instructor last name and initial
-  "days": "MWF",                 // Days of the week (e.g., "MWF")
-  "from": "1300",                // Start time
-  "to": "1500",                  // End time
-  "building": "GDC",             // Building code
-  "room": "2.216",               // Room number
-  "maxEnrollment": 100,          // Maximum enrollment capacity
-  "seatsTaken": 75,              // Current enrollment count
-  "totalXListings": null,        // Cross-listing count
-  "xListPointer": null,          // Cross-listing reference
-  "xListings": null              // Cross-listed sections
+  "uniqueNumber": "12345",
+  "constSectNbr": "1",
+  "instructor": "Smith, J",
+  "days": "MWF",
+  "from": "1300",
+  "to": "1500",
+  "building": "GDC",
+  "room": "2.216",
+  "maxEnrollment": 100,
+  "seatsTaken": 75,
+  "totalXListings": null,
+  "xListPointer": null,
+  "xListings": null
 }
 ```
+
+| **Field**         | **Comment**                      |
+|------------------|----------------------------------|
+| `uniqueNumber`   | Unique number for the section    |
+| `constSectNbr`   | Constant section number          |
+| `instructor`     | Instructor last name and initial |
+| `days`           | Days of the week (e.g., "MWF")   |
+| `from`           | Start time                       |
+| `to`             | End time                         |
+| `building`       | Building code                    |
+| `room`           | Room number                      |
+| `maxEnrollment`  | Maximum enrollment capacity      |
+| `seatsTaken`     | Current enrollment count         |
+| `totalXListings` | Cross-listing count              |
+| `xListPointer`   | Cross-listing reference          |
+| `xListings`      | Cross-listed sections            |
 
 ### Topic
 
 Represents a course topic with sections and description. A course may contain multiple topics in it. For example, the CS course `378` typically have multiple topics under it, each with its own course description and sections. However, in most cases there is only one topic with id `0` under each course.
 
-> [!NOTE]
-> This `topic` field is an unnecessary extra level of hierarchy in the data model. It is not needed for most courses, as they typically have only one topic with id `0`. However, it is included here for a more accurate reflection of the actual data structure in the UT Reg-it system. In the future, I plan to remove this `topic` level and either create separate courses for each topic or merge all topics into one course. This will hopefully simplify the data model and make it easier to work with.
+#### Why is there a `topic` field?
+
+This `topic` field is an extra level of hierarchy in the data model that shouldn't exist. It is added by UT to handle courses where there are multiple topics offered under the same course number. For example, `C S 378` typically hold many different CS topics (e.g. Symbolic Programming, NLP, Cloud Computing, etc.). In my opinion, these are distinct courses and should have separate course numbers. In fact, this `topic` level is not used for most UT courses, so they get assigned a single topic with `topicNumber=0`. In the current implementation, I kept this same structure for consistency, but I plan to remove it in the future. I will either create a separate course for each topic or merge all topics into one course. This will hopefully simplify the data model and make it easier to work with.
+
+#### Structure
 
 ```json
 {
-  "topicNumber": "0",                                // Topic number
-  "title": "Introduction to Computer Science",       // Topic title
-  "courseDescription": "An intro to compute...",     // Description of the topic
-  "sections": [                                      // Available sections for this topic
+  "topicNumber": "0",
+  "title": "Introduction to Computer Science",
+  "courseDescription": "An intro to compute...",
+  "sections": [
     {
       "uniqueNumber": "12345",
       "constSectNbr": "1",
@@ -60,14 +81,36 @@ Represents a course topic with sections and description. A course may contain mu
 }
 ```
 
+| **Field**           | **Comment**                     |
+|---------------------|---------------------------------|
+| `topicNumber`       | Topic number                    |
+| `title`             | Title of the topic              |
+| `courseDescription` | Description of the topic        |
+| `sections`          | List of sections for this topic |
+
+
 ### Course
 
 Represents a course with multiple potential topics.
 
+#### Prefixed Course Numbers
+
+For Summer semesters (semesters IDs that end with `6`), the first character of `courseNumber` indicates the session. For example, `N349` is a nine-week session course, while `W370` is a whole semester course.
+
+| Prefix | Meaning           |
+|--------|-------------------|
+| `N`    | Nine Week Session |
+| `F`    | First Session     |
+| `S`    | Second Session    |
+| `W`    | Whole Semester    |
+
+
+#### Structure
+
 ```json
 {
-  "courseNumber": "375",        // Course number
-  "topics": [                   // Topics offered under this course
+  "courseNumber": "375",
+  "topics": [
     {
       "topicNumber": "0",
       "title": "Compilers",
@@ -94,15 +137,22 @@ Represents a course with multiple potential topics.
 }
 ```
 
+| **Field**      | **Comment**                    |
+|----------------|--------------------------------|
+| `courseNumber` | Course number                  |
+| `topics`       | List of topics for this course |
+
 ### Field of Study
 
 Represents an academic department or field.
 
+#### Structure
+
 ```json
 {
-  "deptAbbr": "C S",              // Department abbreviation (e.g., "C S")
-  "deptName": "Computer Science", // Full department name
-  "courses": [                    // Courses offered by this department
+  "deptAbbr": "C S",
+  "deptName": "Computer Science",
+  "courses": [
     {
       "courseNumber": "375",
       "topics": [
@@ -134,15 +184,23 @@ Represents an academic department or field.
 }
 ```
 
+| **Field**  | **Comment**                   |
+|------------|-------------------------------|
+| `deptAbbr` | Department abbreviation       |
+| `deptName` | Full department name          |
+| `courses`  | List of courses in this field |
+
 ### Semester
 
 The top-level structure containing all course data in a semester. A semester is identified as a string of "YYYYX" where YYYY is the year and X is the semester (2 for spring, 6 for summer, 9 for fall). For example "20252" represents Spring 2025, "20259" represents Fall 2025, etc.
 
+#### Structure
+
 ```json
 {
-  "20252": {                    // Semester identifier (e.g., "20252")
-    "reportDate": "2025-04-15T00:00:00.000Z", // Date the data was reported
-    "fieldsOfStudy": [          // All fields of study for this semester
+  "20252": {
+    "reportDate": "2025-04-15T00:00:00.000Z",
+    "fieldsOfStudy": [
         {
           "deptAbbr": "C S",
           "deptName": "Computer Science",
@@ -177,12 +235,16 @@ The top-level structure containing all course data in a semester. A semester is 
           ]
         }
     ]
-  },
-  "20256": {
-    // Another semester's data
   }
 }
 ```
+
+| **Field**       | **Comment**                                             |
+|-----------------|---------------------------------------------------------|
+| `semester`      | Semester identifier (e.g., "20252")                     |
+| `reportDate`    | Date the data was reported                              |
+| `fieldsOfStudy` | List of fields of study (departments) for this semester |
+
 
 ## API Endpoints
 
