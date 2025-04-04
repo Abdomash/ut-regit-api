@@ -9,7 +9,7 @@ import fs from "fs";
 import path from "path";
 import { type Server } from "bun";
 import type { CourseListing } from "./types";
-import apiDocs from "./api-docs.md" with { type: "text" };
+import apiDocs from "../api-docs.md" with { type: "text" };
 
 /**
  * Default port for the server
