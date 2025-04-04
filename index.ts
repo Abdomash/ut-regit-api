@@ -9,6 +9,7 @@ import fs from "fs";
 import path from "path";
 import { type Server } from "bun";
 import type { CourseListing } from "./types";
+import apiDocs from "./api-docs.md" with { type: "text" };
 
 /**
  * Default port for the server
@@ -92,18 +93,44 @@ function main() {
       /**
        * Root endpoint - Welcome message
        */
-      "/": () =>
-        new Response("Welcome to the Course Listings API", {
+      "/": new Response(
+        "Welcome to UT Reg-it Course Listings API!\n\n" +
+          "Available endpoints:\n" +
+          "\t- `/docs`:      for documentation (in html)\n" +
+          "\t- `/semesters`: for semesters data",
+        {
           headers: { "Content-Type": "text/plain" },
-        }),
+        },
+      ),
+
+      /**
+       * API documentation
+       */
+      "/docs": new Response(
+        `
+        <!DOCTYPE html>
+          <html>
+            <head>
+              <title>UT Reg-it Course Listings API Documentation</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+            </head>
+            <body id="content">
+              <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+              <script>
+                document.getElementById('content').innerHTML = marked.parse(\`${apiDocs.replace(/`/g, "\\`")}\`);
+              </script>
+            </body>
+          </html>`,
+        {
+          headers: { "Content-Type": "text/html" },
+        },
+      ),
 
       /**
        * Lists all available semesters
        */
-      "/semesters": () => {
-        const semesters = Object.keys(courseListings);
-        return okResponse(semesters);
-      },
+      "/semesters": okResponse(Object.keys(courseListings)),
       "/semesters/": (req) => Response.redirect(req.url.slice(0, -1)),
 
       /**
