@@ -38,12 +38,12 @@ bun install
 To convert a course listing text file into JSON format:
 
 ```bash
-bun run index.ts --parse <path-to-input-file> <path-to-output-file>
+bun parse <path-to-input-file> <path-to-output-file>
 ```
 
 Example:
 ```bash
-bun run index.ts --parse data/Current_Semester_Report data/course-listings.json
+bun parse data/Current_Semester_Report data/course-listings.json
 ```
 
 When parsing multiple files:
@@ -55,12 +55,12 @@ When parsing multiple files:
 To start the API server:
 
 ```bash
-bun run index.ts --serve <path-to-json-file>
+bun serve <path-to-json-file>
 ```
 
 Example:
 ```bash
-bun run index.ts --serve data/course-listings.json
+bun serve data/course-listings.json
 ```
 
 The server will start on port 3000 by default (can be changed with the PORT environment variable).
@@ -121,7 +121,7 @@ When merging course listings, the parser will:
 ### Parsing a Course Listing
 
 ```bash
-bun run index.ts --parse data/data/Current_Semester_Report data/course-listings.json
+bun parse data/data/Current_Semester_Report data/course-listings.json
 ```
 
 Output:
@@ -134,7 +134,7 @@ Successfully saved course data to data/course-listings.json
 ### Starting the API Server
 
 ```bash
-bun run index.ts --serve data/course-listings.json
+bun serve data/course-listings.json
 ```
 
 Output:
