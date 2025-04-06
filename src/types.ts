@@ -17,7 +17,7 @@ export type Course = {
    *
    * e.g., "2024-04-05T14:30:00.000Z"
    */
-  reportDate: String;
+  reportDate: string;
 
   /**
    * Year of the course, e.g., "2025"
@@ -265,7 +265,7 @@ export type SemesterCourseListing = {
    *
    * e.g., "2024-04-05T14:30:00.000Z"
    */
-  reportDate: String;
+  reportDate: string;
 
   /**
    * Year of the course, e.g., "2025"

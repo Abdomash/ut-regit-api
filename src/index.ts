@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { type SemesterCourseListing } from "./types";
-import { serveCourseListingApi } from "./api";
+import { serveCourseListingApi } from "./api/routes";
 import { mergeCourseListing, parseCourseListing } from "./parser";
 
 /**

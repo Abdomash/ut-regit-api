@@ -1,12 +1,22 @@
 {
-  "name": "ut-regit-api-wrapper",
-  "module": "index.ts",
+  "name": "ut-regit-api",
+  "main": "src/index.ts",
   "type": "module",
   "private": true,
   "devDependencies": {
     "@types/bun": "latest"
   },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist",
+    "devServe": "bun run src/index.ts -- --serve",
+    "devParse": "bun run src/index.ts -- --parse",
+    "serve": "bun run build && bun run dist/index.js -- --serve",
+    "parse": "bun run build && bun run dist/index.js -- --parse",
+  },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "hono": "^4.7.5"
   }
 }
