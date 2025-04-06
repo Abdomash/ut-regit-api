@@ -2,13 +2,11 @@
  * UT Reg-it Course Listings API Server
  *
  * This server provides access to course listings data loaded from a JSON file.
- * It exposes endpoints to browse semesters, fields of study, courses, topics, and sections.
+ * It exposes endpoints to browse semesters, fields of study, courses, and sections.
  */
 
-import fs from "fs";
-import path from "path";
 import { type Server } from "bun";
-import type { CourseListing } from "./types";
+import type { SemesterCourseListing } from "./types";
 import apiDocs from "../api-docs.md" with { type: "text" };
 
 /**
@@ -49,40 +47,7 @@ const errorResponse = (message: string, status = 400) => {
 /**
  * Main function to start the server
  */
-function main() {
-  // Get the filepath from command line arguments
-  const args = process.argv.slice(2);
-  const filePath = args[0];
-
-  if (!filePath) {
-    console.error("Error: Missing file path argument");
-    console.error("Usage: bun run script.ts <path-to-json-file>");
-    process.exit(1);
-  }
-
-  // Resolve the absolute path
-  const absolutePath = path.resolve(filePath);
-
-  // Check if file exists
-  if (!fs.existsSync(absolutePath)) {
-    console.error(`Error: File not found: ${absolutePath}`);
-    process.exit(1);
-  }
-
-  let courseListings: CourseListing;
-
-  try {
-    // Load and parse the JSON file
-    const fileContent = fs.readFileSync(absolutePath, "utf8");
-    courseListings = JSON.parse(fileContent) as CourseListing;
-    console.log(`Successfully loaded course data from ${absolutePath}`);
-  } catch (err: unknown) {
-    console.error(
-      `Error loading course data: ${err instanceof Error ? err.message : err}`,
-    );
-    process.exit(1);
-  }
-
+export function serveCourseListingApi(courseListings: SemesterCourseListing[]) {
   // Get port from environment variable or use default
   const PORT = process.env.PORT ? parseInt(process.env.PORT) : DEFAULT_PORT;
 
@@ -130,11 +95,13 @@ function main() {
       /**
        * Lists all available semesters
        */
-      "/semesters": okResponse(Object.keys(courseListings)),
+      "/semesters": okResponse(
+        courseListings.map((listing) => listing.semesterId),
+      ),
       "/semesters/": (req) => Response.redirect(req.url.slice(0, -1)),
 
       /**
-       * Lists all fields of study for a specific semester
+       * Lists the details of a specific semester without the courses
        */
       "/semesters/:semester": (req) => {
         const { semester } = req.params;
@@ -143,18 +110,17 @@ function main() {
           return errorResponse("Missing semester parameter");
         }
 
-        if (!courseListings[semester]) {
+        const courseListing = courseListings.find(
+          (listing) => listing.semesterId === semester,
+        );
+
+        if (!courseListing) {
           return errorResponse(`Semester '${semester}' not found`);
         }
 
-        const fieldsOfStudy = courseListings[semester].fieldsOfStudy.map(
-          (fos) => ({
-            deptAbbr: fos.deptAbbr,
-            deptName: fos.deptName,
-          }),
-        );
+        const { courses, ...data } = courseListing;
 
-        return okResponse(fieldsOfStudy);
+        return okResponse(data);
       },
       "/semesters/:semester/": (req) => Response.redirect(req.url.slice(0, -1)),
 
@@ -164,12 +130,24 @@ function main() {
       "/semesters/:semester/:fieldOfStudy": (req) => {
         const { semester, fieldOfStudy } = req.params;
 
-        if (!courseListings[semester]) {
+        if (!semester || semester.trim() === "") {
+          return errorResponse("Missing semester parameter");
+        }
+
+        if (!fieldOfStudy || fieldOfStudy.trim() === "") {
+          return errorResponse("Missing field of study parameter");
+        }
+
+        const courseListing = courseListings.find(
+          (listing) => listing.semesterId === semester,
+        );
+
+        if (!courseListing) {
           return errorResponse(`Semester '${semester}' not found`);
         }
 
-        const fos = courseListings[semester].fieldsOfStudy.find(
-          (fos) => fos.deptAbbr === fieldOfStudy,
+        const fos = courseListing.fieldsOfStudy.find(
+          (fos) => fos["Dept-Abbr"] === fieldOfStudy,
         );
 
         if (!fos) {
@@ -178,24 +156,43 @@ function main() {
           );
         }
 
-        const courses = fos.courses.map((course) => course.courseNumber);
+        const courses = courseListing.courses.filter(
+          (course) => course["Dept-Abbr"] === fieldOfStudy,
+        );
+
         return okResponse(courses);
       },
       "/semesters/:semester/:fieldOfStudy/": (req) =>
         Response.redirect(req.url.slice(0, -1)),
 
       /**
-       * Lists all topics for a specific course
+       * Lists the details for all sections with a specific course number
        */
       "/semesters/:semester/:fieldOfStudy/:course": (req) => {
         const { semester, fieldOfStudy, course } = req.params;
 
-        if (!courseListings[semester]) {
+        if (!semester || semester.trim() === "") {
+          return errorResponse("Missing semester parameter");
+        }
+
+        if (!fieldOfStudy || fieldOfStudy.trim() === "") {
+          return errorResponse("Missing field of study parameter");
+        }
+
+        if (!course || course.trim() === "") {
+          return errorResponse("Missing course parameter");
+        }
+
+        const courseListing = courseListings.find(
+          (listing) => listing.semesterId === semester,
+        );
+
+        if (!courseListing) {
           return errorResponse(`Semester '${semester}' not found`);
         }
 
-        const fos = courseListings[semester].fieldsOfStudy.find(
-          (fos) => fos.deptAbbr === fieldOfStudy,
+        const fos = courseListing.fieldsOfStudy.find(
+          (fos) => fos["Dept-Abbr"] === fieldOfStudy,
         );
 
         if (!fos) {
@@ -204,7 +201,9 @@ function main() {
           );
         }
 
-        const courseData = fos.courses.find((c) => c.courseNumber === course);
+        const courseData = courseListing.courses.find(
+          (c) => c["Course Nbr"] === course,
+        );
 
         if (!courseData) {
           return errorResponse(
@@ -212,75 +211,47 @@ function main() {
           );
         }
 
-        const topics = courseData.topics.map((topic) => ({
-          topicNumber: topic.topicNumber,
-          topicTitle: topic.title,
-        }));
+        const coursesData = courseListing.courses.filter(
+          (c) => c["Dept-Abbr"] === fieldOfStudy && c["Course Nbr"] === course,
+        );
 
-        return okResponse(topics);
+        return okResponse(coursesData);
       },
       "/semesters/:semester/:fieldOfStudy/:course/": (req) =>
         Response.redirect(req.url.slice(0, -1)),
 
       /**
-       * Lists all sections for a specific topic
-       */
-      "/semesters/:semester/:fieldOfStudy/:course/:topic": (req) => {
-        const { semester, fieldOfStudy, course, topic } = req.params;
-
-        if (!courseListings[semester]) {
-          return errorResponse(`Semester '${semester}' not found`);
-        }
-
-        const fos = courseListings[semester].fieldsOfStudy.find(
-          (fos) => fos.deptAbbr === fieldOfStudy,
-        );
-
-        if (!fos) {
-          return errorResponse(
-            `Field of study '${fieldOfStudy}' not found in semester '${semester}'`,
-          );
-        }
-
-        const courseData = fos.courses.find((c) => c.courseNumber === course);
-
-        if (!courseData) {
-          return errorResponse(
-            `Course '${course}' not found in '${fieldOfStudy}'`,
-          );
-        }
-
-        const topicData = courseData.topics.find(
-          (t) => t.topicNumber === topic,
-        );
-
-        if (!topicData) {
-          return errorResponse(
-            `Topic '${topic}' not found in course '${course}'`,
-          );
-        }
-
-        const sections = topicData.sections.map((section) => ({
-          uniqueNumber: section.uniqueNumber,
-        }));
-
-        return okResponse(sections);
-      },
-      "/semesters/:semester/:fieldOfStudy/:course/:topic/": (req) =>
-        Response.redirect(req.url.slice(0, -1)),
-
-      /**
        * Gets detailed information about a specific section
        */
-      "/semesters/:semester/:fieldOfStudy/:course/:topic/:section": (req) => {
-        const { semester, fieldOfStudy, course, topic, section } = req.params;
+      "/semesters/:semester/:fieldOfStudy/:course/:section": (req) => {
+        const { semester, fieldOfStudy, course, section } = req.params;
 
-        if (!courseListings[semester]) {
+        if (!semester || semester.trim() === "") {
+          return errorResponse("Missing semester parameter");
+        }
+
+        if (!fieldOfStudy || fieldOfStudy.trim() === "") {
+          return errorResponse("Missing field of study parameter");
+        }
+
+        if (!course || course.trim() === "") {
+          return errorResponse("Missing course parameter");
+        }
+
+        if (!section || section.trim() === "") {
+          return errorResponse("Missing section parameter");
+        }
+
+        const courseListing = courseListings.find(
+          (listing) => listing.semesterId === semester,
+        );
+
+        if (!courseListing) {
           return errorResponse(`Semester '${semester}' not found`);
         }
 
-        const fos = courseListings[semester].fieldsOfStudy.find(
-          (fos) => fos.deptAbbr === fieldOfStudy,
+        const fos = courseListing.fieldsOfStudy.find(
+          (fos) => fos["Dept-Abbr"] === fieldOfStudy,
         );
 
         if (!fos) {
@@ -289,7 +260,9 @@ function main() {
           );
         }
 
-        const courseData = fos.courses.find((c) => c.courseNumber === course);
+        const courseData = courseListing.courses.find(
+          (c) => c["Course Nbr"] === course,
+        );
 
         if (!courseData) {
           return errorResponse(
@@ -297,29 +270,22 @@ function main() {
           );
         }
 
-        const topicData = courseData.topics.find(
-          (t) => t.topicNumber === topic,
-        );
-
-        if (!topicData) {
-          return errorResponse(
-            `Topic '${topic}' not found in course '${course}'`,
-          );
-        }
-
-        const sectionData = topicData.sections.find(
-          (s) => s.uniqueNumber === section,
+        const sectionData = courseListing.courses.filter(
+          (c) =>
+            c["Dept-Abbr"] === fieldOfStudy &&
+            c["Course Nbr"] === course &&
+            c["Unique"] === section,
         );
 
         if (!sectionData) {
           return errorResponse(
-            `Section '${section}' not found in topic '${topic}'`,
+            `Section '${section}' not found in course '${course}'`,
           );
         }
 
         return okResponse(sectionData);
       },
-      "/semesters/:semester/:fieldOfStudy/:course/:topic/:section/": (req) =>
+      "/semesters/:semester/:fieldOfStudy/:course/:section/": (req) =>
         Response.redirect(req.url.slice(0, -1)),
     },
 
@@ -346,6 +312,3 @@ function main() {
 
   return server;
 }
-
-// Start the server
-main();

@@ -1,18 +1,17 @@
-import type { CourseListing, Section } from "./types";
+import type { Course, SemesterCourseListing } from "./types";
 
 /**
  * Parses a course listing text file
  * @param fileContent The content of the course listing text file
- * @returns Structured course data organized by year+semester, fields of study, courses, topics, and sections
+ * @returns A structured object containing the course data for a specific semester
  */
-export function parseClassListing(fileContent: string): CourseListing {
+export function parseCourseListing(fileContent: string): SemesterCourseListing {
   // Split into lines
   const lines = fileContent.split("\n");
 
   // Find the report date and time line and data start line
   let reportDate = new Date();
   let dataStartIndex = 0;
-  let headerLineIndex = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]?.trim();
@@ -58,7 +57,6 @@ export function parseClassListing(fileContent: string): CourseListing {
 
     // Find the line with column headers (Year, Semester, etc.)
     if (line.startsWith("Year")) {
-      headerLineIndex = i;
       dataStartIndex = i + 1; // Data starts right after the headers
       break;
     }
@@ -80,29 +78,27 @@ export function parseClassListing(fileContent: string): CourseListing {
 
     try {
       rawData.push({
-        year: fields[0]!.trim(),
-        semester: fields[1]!.trim(),
-        deptAbbr: fields[2]!.trim(),
-        deptName: fields[3]!.trim(),
-        courseNbr: fields[4]!.trim(),
-        topic: fields[5]!.trim(),
-        unique: fields[6]!.trim(),
-        constSectNbr: fields[7]!.trim(),
-        title: fields[8]!.trim(),
-        crsDesc: fields[9]!.trim(),
-        instructor: fields[10]!.trim(),
-        days: fields[11]!.trim(),
-        from: fields[12]!.trim(),
-        to: fields[13]!.trim(),
-        building: fields[14]!.trim(),
-        room: fields[15]!.trim(),
-        maxEnrollment: parseInt(fields[16]!.trim()) || 0,
-        seatsTaken: parseInt(fields[17]!.trim()) || 0,
-        totalXListings:
-          fields[18] && fields[18].trim() ? parseInt(fields[18].trim()) : null,
-        xListPointer:
-          fields[19] && fields[19].trim() ? fields[19].trim() : null,
-        xListings: fields[20] && fields[20].trim() ? fields[20].trim() : null,
+        year: fields[0]?.trim() || "",
+        semester: fields[1]?.trim() || "",
+        deptAbbr: fields[2]?.trim() || "",
+        deptName: fields[3]?.trim() || "",
+        courseNbr: fields[4]?.trim() || "",
+        topic: fields[5]?.trim() || "",
+        unique: fields[6]?.trim() || "",
+        constSectNbr: fields[7]?.trim() || "",
+        title: fields[8]?.trim() || "",
+        crsDesc: fields[9]?.trim() || "",
+        instructor: fields[10]?.trim() || "",
+        days: fields[11]?.trim() || "",
+        from: fields[12]?.trim() || "",
+        to: fields[13]?.trim() || "",
+        building: fields[14]?.trim() || "",
+        room: fields[15]?.trim() || "",
+        maxEnrollment: fields[16]?.trim() || "",
+        seatsTaken: fields[17]?.trim() || "",
+        totalXListings: fields[18]?.trim() || "",
+        xListPointer: fields[19]?.trim() || "",
+        xListings: fields[20]?.trim() || "",
       });
     } catch (error) {
       console.error(`Error parsing line ${i}: ${line}`);
@@ -110,110 +106,137 @@ export function parseClassListing(fileContent: string): CourseListing {
     }
   }
 
-  // Organize data into the nested structure
-  const result: CourseListing = {};
+  // Skip if no data was found
+  if (rawData.length === 0) {
+    throw new Error("No course data found in the file");
+  }
 
-  // Group data by year+semester, department, course, topic, and section
-  rawData.forEach((entry) => {
-    const yearSemester = `${entry.year}${entry.semester}`;
+  // Get common data for all courses
+  const year = rawData[0].year as string;
+  const semester = rawData[0].semester as "2" | "6" | "9";
+  const semesterId = `${year}${semester}`;
 
-    // Create year+semester entry if it doesn't exist
-    if (!result[yearSemester]) {
-      result[yearSemester] = {
-        reportDate: reportDate,
-        fieldsOfStudy: [],
-      };
+  // Determine semester name
+  let semesterName = "";
+  switch (semester) {
+    case "2":
+      semesterName = `Spring ${year}`;
+      break;
+    case "6":
+      semesterName = `Summer ${year}`;
+      break;
+    case "9":
+      semesterName = `Fall ${year}`;
+      break;
+  }
+
+  // Extract unique fields of study
+  const fieldsOfStudyMap = new Map<
+    string,
+    { "Dept-Abbr": string; "Dept-Name": string }
+  >();
+
+  rawData.forEach((data) => {
+    if (data.deptAbbr && !fieldsOfStudyMap.has(data.deptAbbr)) {
+      fieldsOfStudyMap.set(data.deptAbbr, {
+        "Dept-Abbr": data.deptAbbr,
+        "Dept-Name": data.deptName,
+      });
     }
-
-    // Find or create field of study
-    let fieldOfStudy = result[yearSemester].fieldsOfStudy.find(
-      (fos) => fos.deptAbbr === entry.deptAbbr,
-    );
-
-    if (!fieldOfStudy) {
-      fieldOfStudy = {
-        deptAbbr: entry.deptAbbr,
-        deptName: entry.deptName,
-        courses: [],
-      };
-      result[yearSemester].fieldsOfStudy.push(fieldOfStudy);
-    }
-
-    // Find or create course
-    let course = fieldOfStudy.courses.find(
-      (c) => c.courseNumber === entry.courseNbr,
-    );
-
-    if (!course) {
-      course = {
-        courseNumber: entry.courseNbr,
-        topics: [],
-      };
-      fieldOfStudy.courses.push(course);
-    }
-
-    // Find or create topic (using topic number, title, and description as identifiers)
-    const topicKey = `${entry.topic}:${entry.title}:${entry.crsDesc}`;
-    let topic = course.topics.find(
-      (t) => `${t.topicNumber}:${t.title}:${t.courseDescription}` === topicKey,
-    );
-
-    if (!topic) {
-      topic = {
-        topicNumber: entry.topic,
-        title: entry.title,
-        courseDescription: entry.crsDesc,
-        sections: [],
-      };
-      course.topics.push(topic);
-    }
-
-    // Create section
-    const section: Section = {
-      uniqueNumber: entry.unique,
-      constSectNbr: entry.constSectNbr,
-      instructor: entry.instructor,
-      days: entry.days,
-      from: entry.from,
-      to: entry.to,
-      building: entry.building,
-      room: entry.room,
-      maxEnrollment: entry.maxEnrollment,
-      seatsTaken: entry.seatsTaken,
-      totalXListings: entry.totalXListings,
-      xListPointer: entry.xListPointer,
-      xListings: entry.xListings,
-    };
-
-    // Add section to topic
-    topic.sections.push(section);
   });
 
-  return result;
+  // Transform raw data into Course objects
+  const courses: Course[] = rawData.map((data) => {
+    // Extract summer session code if present (for summer courses)
+    let summerSession: "F" | "S" | "N" | "W" | "" = "";
+    let cleanCourseNbr = data.courseNbr;
+
+    if (semester === "6" && data.courseNbr) {
+      const firstChar = data.courseNbr.charAt(0);
+      if (["F", "S", "N", "W"].includes(firstChar)) {
+        summerSession = firstChar as "F" | "S" | "N" | "W";
+        cleanCourseNbr = data.courseNbr.substring(1);
+      }
+    }
+
+    // Parse X-Listings as an array
+    const xListings: string[] = data.xListings
+      ? data.xListings
+          .split(",")
+          .map((x: string) => x.trim())
+          .filter(Boolean)
+      : [];
+
+    // Create the Course object
+    const course: Course = {
+      reportDate: reportDate.toISOString(),
+      Year: data.year,
+      Semester: data.semester as "2" | "6" | "9",
+      semesterId,
+      semesterName,
+      "Dept-Abbr": data.deptAbbr,
+      "Dept-Name": data.deptName,
+      "Course Nbr": data.courseNbr,
+      fullCourseNumber: `${data.deptAbbr} ${data.courseNbr}`,
+      fullCourseName: `${data.deptAbbr} ${data.courseNbr} - ${data.title}`,
+      summerSession,
+      Topic: data.topic,
+      Unique: data.unique,
+      "Const Sect Nbr": data.constSectNbr,
+      Title: data.title,
+      "Crs Desc": data.crsDesc,
+      Instructor: data.instructor,
+      Days: data.days,
+      From: data.from,
+      To: data.to,
+      Building: data.building,
+      Room: data.room,
+      "Max Enrollment": data.maxEnrollment,
+      "Seats Taken": data.seatsTaken,
+      "Total X-listings": data.totalXListings,
+      "X-List Pointer": data.xListPointer,
+      "X-Listings": xListings,
+    };
+
+    return course;
+  });
+
+  // Create and return the SemesterCourseListing object
+  return {
+    reportDate: reportDate.toISOString(),
+    Year: year,
+    Semester: semester,
+    semesterId,
+    fieldsOfStudy: Array.from(fieldsOfStudyMap.values()),
+    courses,
+  };
 }
 
 /**
- * Example usage:
+ * Merges a course listing to an array of course listings
  *
- * // Read file content (in Node.js)
- * const fs = require('fs');
- * const fileContent = fs.readFileSync('classes.txt', 'utf8');
+ * @param courseListing - The course listing to add
+ * @param courseListings - The list of course listings
  *
- * // Parse the content
- * const coursesData = parseClassListing(fileContent);
+ * The new course listing will replace the old one if it has the same semesterId.
  *
- * // Access data for a specific semester
- * const spring2025 = coursesData['20252'];
- * console.log(`Report date: ${spring2025.reportDate}`);
- *
- * // Get information about a specific department
- * const arch = spring2025.fieldsOfStudy.find(fos => fos.deptAbbr === 'ARC');
- * console.log(`${arch.deptName} has ${arch.courses.length} courses`);
- *
- * // Find a specific course
- * const design1 = arch.courses.find(c => c.courseNumber === 'F310K');
- * if (design1 && design1.topics.length > 0) {
- *   const sections = design1.topics[0].sections;
- *   console.log(`Design I has ${sections.length} sections with instructor ${sections[0].instructor}`);
- * }
+ * @returns The updated list of course listings
  */
+export function mergeCourseListing(
+  courseListing: SemesterCourseListing,
+  courseListings: SemesterCourseListing[],
+): SemesterCourseListing[] {
+  const existingIndex = courseListings.findIndex(
+    (listing) => listing.semesterId === courseListing.semesterId,
+  );
+
+  if (existingIndex !== -1) {
+    // Replace the existing course listing
+    courseListings[existingIndex] = courseListing;
+  } else {
+    // Add the new course listing
+    courseListings.push(courseListing);
+  }
+
+  return courseListings;
+}
